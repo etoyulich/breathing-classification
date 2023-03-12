@@ -56,7 +56,8 @@ public class DeterminationSocket {
 
     @OnError
     public void onError(Session session, Throwable throwable) {
-
+        System.out.println(throwable.getMessage());
+        session.getBasicRemote();
     }
 
 
