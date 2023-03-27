@@ -8,7 +8,11 @@ import jakarta.websocket.server.PathParam;
 import jakarta.websocket.server.ServerEndpoint;
 import org.springframework.stereotype.Component;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.net.Socket;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -108,6 +112,20 @@ public class DeterminationSocket {
                 }
             }
         }
+
+        for (String record : records) {
+            coords = List.of(record.split(" +"));
+
+            Coordinate chest = new Coordinate(Double.parseDouble(coords.get(1)),
+                    Double.parseDouble(coords.get(2)), Double.parseDouble(coords.get(3)));
+            Coordinate abdominal = new Coordinate(Double.parseDouble(coords.get(4)),
+                    Double.parseDouble(coords.get(5)), Double.parseDouble(coords.get(6)));
+            Coordinate back = new Coordinate(Double.parseDouble(coords.get(7)),
+                    Double.parseDouble(coords.get(8)), Double.parseDouble(coords.get(9)));
+
+            coordinates.add(new DataRecord(chest, abdominal, back, Double.parseDouble(coords.get(0))));
+        }
+        sendMessage();
     }
 
     @OnClose
@@ -121,5 +139,46 @@ public class DeterminationSocket {
         session.getBasicRemote();
     }
 
+    private void sendMessage() throws IOException {
+        try {
+            String breathType = "-1";
+            double end = coordinates.get(coordinates.size() - 1).getTimestamp();
 
+            int startIndex = -1;
+            for (int i = coordinates.size() - 1; i >= 0; i--) {
+                if (end - coordinates.get(i).getTimestamp() >= ((float)60*166)/1500) {
+                    startIndex = i;
+                    break;
+                }
+            }
+
+            if (startIndex != -1) {
+                coordinates.removeAll(coordinates.subList(0, startIndex));
+                String param = coordinates.toString().replace("[", "").replace("]", "").replace(", ", ",");
+                ProcessBuilder processBuilder = new ProcessBuilder("python", "breath.py", param, modelType);
+                processBuilder.redirectErrorStream(true);
+
+                Process process = processBuilder.start();
+                List<String> results = readProcessOutput(process.getInputStream());
+                int res = process.exitValue();
+                breathType = String.valueOf(res);
+                System.out.println(results);
+            }
+            Connection.getInstance().getSession().getBasicRemote().sendText(breathType);
+        } catch (IOException e) {
+            System.out.println("Произошла ошибка при попытке вызова скрипта, ошибка:" + e.getMessage());
+            sendErrorMessage("Произошла ошибка при попытке вызова скрипта, ошибка:" + e.getMessage());
+        }
+    }
+
+    private List<String> readProcessOutput(InputStream inputStream) throws IOException {
+        try (BufferedReader output = new BufferedReader(new InputStreamReader(inputStream))) {
+            return output.lines()
+                    .collect(Collectors.toList());
+        }
+    }
+
+    private void sendErrorMessage(String message) throws IOException {
+        Connection.getInstance().getSession().getBasicRemote().sendText(message);
+    }
 }
