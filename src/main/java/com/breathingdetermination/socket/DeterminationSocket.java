@@ -11,6 +11,8 @@ import org.springframework.stereotype.Component;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
 @Component
 @ServerEndpoint(value = "/determine/{modelType}/{token}")
@@ -46,7 +48,66 @@ public class DeterminationSocket {
 
     @OnMessage
     public void onMessage(String message) throws IOException {
+        message = message.trim();
+        List<String> records = List.of(message.split("\n"));
+        if(records.isEmpty()) {
+            System.out.println("Неверный формат данных. Данные должны содержать 10 чисел, разделенных пробелом, дробная часть от целой должна разделяться знаком точки.");
+            sendErrorMessage("Неверный формат данных. Данные должны содержать 10 чисел, разделенных пробелом, дробная часть от целой должна разделяться знаком точки.");
+            return;
+        }
 
+        List<String> coords = List.of(records.get(0).split(" +"));
+        if (coords.size() != 10) {
+            System.out.println("Неверный формат данных. Данные должны содержать 10 чисел, разделенных пробелом, дробная часть от целой должна разделяться знаком точки.");
+            sendErrorMessage("Неверный формат данных. Данные должны содержать 10 чисел, разделенных пробелом, дробная часть от целой должна разделяться знаком точки.");
+            return;
+        }
+        double previous;
+        if(!coordinates.isEmpty()) {
+            previous = coordinates.get(coordinates.size() -1).getTimestamp();
+        } else {
+            try {
+                previous = Double.parseDouble(coords.get(0));
+            } catch (NumberFormatException e) {
+                System.out.println("Неверный формат данных. Данные должны содержать 10 чисел, разделенных пробелом, дробная часть от целой должна разделяться знаком точки.");
+                sendErrorMessage("Неверный формат данных. Данные должны содержать 10 чисел, разделенных пробелом, дробная часть от целой должна разделяться знаком точки.");
+                return;
+            }
+        }
+
+        for (int i = 0; i < records.size(); i++) {
+            coords = List.of(records.get(i).split(" +"));
+            if (coords.size() != 10) {
+                System.out.println("Неверный формат данных. Данные должны содержать 10 чисел, разделенных пробелом, дробная часть от целой должна разделяться знаком точки.");
+                sendErrorMessage("Неверный формат данных. Данные должны содержать 10 чисел, разделенных пробелом, дробная часть от целой должна разделяться знаком точки.");
+                return;
+            }
+
+            double current;
+            try {
+                current = Double.parseDouble(coords.get(0));
+            } catch (NumberFormatException e) {
+                System.out.println("Неверный формат данных. Данные должны содержать 10 чисел, разделенных пробелом, дробная часть от целой должна разделяться знаком точки.");
+                sendErrorMessage("Неверный формат данных. Данные должны содержать 10 чисел, разделенных пробелом, дробная часть от целой должна разделяться знаком точки.");
+                return;
+            }
+
+            if(previous >= current && !coordinates.isEmpty()) {
+                sendErrorMessage("Время не может быть меньше или равно времени предыдушей записи.");
+                return;
+            }
+            previous = current;
+
+            for (String coordinate : coords) {
+                try {
+                    Double.parseDouble(coordinate);
+                } catch (NumberFormatException e) {
+                    System.out.println("Неверный формат данных. Данные должны содержать 10 чисел, разделенных пробелом, дробная часть от целой должна разделяться знаком точки.");
+                    sendErrorMessage("Неверный формат данных. Данные должны содержать 10 чисел, разделенных пробелом, дробная часть от целой должна разделяться знаком точки.");
+                    return;
+                }
+            }
+        }
     }
 
     @OnClose
