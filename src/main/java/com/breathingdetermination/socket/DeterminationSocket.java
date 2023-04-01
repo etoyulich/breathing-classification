@@ -130,7 +130,13 @@ public class DeterminationSocket {
 
     @OnClose
     public void onClose(Session session) {
-
+        if(session == Connection.getInstance().getSession()) {
+            System.out.println("Clear cache");
+            coordinates = new ArrayList<>();
+            Connection.getInstance().setSession(null);
+            Connection.getInstance().setListener(null);
+            System.out.println("Connection closed!");
+        }
     }
 
     @OnError
