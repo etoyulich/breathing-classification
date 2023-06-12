@@ -103,13 +103,13 @@ def approximateSinusoid(y, timestep):
     t = np.array([i*timestep for i in range(len(y))])
     y = np.array(y)
     F_y = abs(np.fft.fft(y))
-    ff = np.fft.fftfreq(len(t), (t[1]-t[0]))   
-    freq_init = abs(ff[np.argmax(F_y[1:])+1])  
+    ff = np.fft.fftfreq(len(t), (t[1]-t[0]))
+    freq_init = abs(ff[np.argmax(F_y[1:])+1])
     amp_init = np.std(y) * 2.**0.5
     offset_init = np.mean(y)
     init = np.array([amp_init, 2.*np.pi*freq_init, 0., offset_init])
+    popt, _ = scipy.optimize.curve_fit(sinusoid, t, y, p0=init, maxfev=10000)
 
-    popt = scipy.optimize.curve_fit(sinusoid, t, y, p0=init, maxfev=10000)
     A, w, p, c = popt
     return {"amp": A, "omega": w, "phase": p, "offset": c}
 
